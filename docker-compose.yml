@@ -1,47 +1,66 @@
-services: 
-    web-server:
-      image: nginx:1.21.1
-      container_name: webdev-nginx
-      ports:
-        - "80:80"
-        - "443:443"
-      networks:
-        - web-dev
-      volumes:
-        - ./confs/servers/:/etc/nginx/conf.d/
-        - ./:/var/www/html
+version: '3'
+services:
+  
+  #PHP Service
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: digitalocean.com/php
+    container_name: php
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
 
-    php:
-      build:
-        dockerfile: Dockerfile
-        context: .
-      image: php:8.2-fpm
-      container_name: webdev-php
-      volumes: 
-        - ./:/var/www/html
-        - ./confs/php/ini:/usr/local/etc/php
+  #Nginx Service
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./:/var/www
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - app-network
 
-      ports: 
-        - "9000:9000"
-      networks: 
-        - web-dev
+  #MySQL Service
+  db:
+    image: mysql:5.7.22
+    container_name: db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: laravel
+      MYSQL_ROOT_PASSWORD: your_mysql_root_password
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+      MYSQL_USER: devuser
+      MYSQL_PASSWORD: devpass
+    volumes:
+      - dbdata:/var/lib/mysql/
+      - ./mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - app-network
 
-    db:
-      image: mysql:8.0.33
-      container_name: webdev-mysql
-      volumes: 
-        - ./confs/mysql_db:/var/lib/mysql
-      command: --default-authentication-plugin=mysql_native_password
-      environment:
-        MYSQL_ROOT_PASSWORD: root
-        MYSQL_DATABASE: test_db
-        MYSQL_USER: devuser
-        MYSQL_PASSWORD: devpass
-      ports:
-        - "3306:3306"
-      networks: 
-        - web-dev
-
-networks: 
-      web-dev:
-        driver: bridge
+#Docker Networks
+networks:
+  app-network:
+    driver: bridge
+#Volumes
+volumes:
+  dbdata:
+    driver: local
