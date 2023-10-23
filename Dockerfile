@@ -1,51 +1,29 @@
-FROM php:8.2-fpm
+FROM php:8.2-apache
 
-# Copy composer.lock and composer.json
-COPY composer.lock composer.json /var/www/
-
-# Set working directory
-WORKDIR /var/www
-
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    libonig-dev \ 
-    build-essential \
-    libpng-dev \
-    libjpeg62-turbo-dev \
+RUN apt-get update && apt-get install -y  \
     libfreetype6-dev \
-    locales \
-    zip \
-    jpegoptim optipng pngquant gifsicle \
-    vim \
-    unzip \
-    git \
-    curl \
-    libzip-dev
+    libjpeg-dev \
+    libpng-dev \
+    libwebp-dev \
+    --no-install-recommends \
+    && docker-php-ext-enable opcache \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo_mysql -j$(nproc) gd \
+    && apt-get autoclean -y \
+    && rm -rf /var/lib/apt/lists/* 
 
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# Update apache conf to point to application public directory
+ENV APACHE_DOCUMENT_ROOT=/var/www/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Install extensions
-RUN docker-php-ext-install pdo_mysql mbstring zip exif pcntl
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg
-RUN docker-php-ext-install gd
+# Update uploads config
+RUN echo "file_uploads = On\n" \
+         "memory_limit = 1024M\n" \
+         "upload_max_filesize = 512M\n" \
+         "post_max_size = 512M\n" \
+         "max_execution_time = 1200\n" \
+         > /usr/local/etc/php/conf.d/uploads.ini
 
-# Install composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-# Add user for laravel application
-RUN groupadd -g 1000 www
-RUN useradd -u 1000 -ms /bin/bash -g www www
-
-# Copy existing application directory contents
-COPY . /var/www
-
-# Copy existing application directory permissions
-COPY --chown=www:www . /var/www
-
-# Change current user to www
-USER www
-
-# Expose port 9000 and start php-fpm server
-EXPOSE 9000
-CMD ["php-fpm"]
+# Enable headers module
+RUN a2enmod rewrite headers 

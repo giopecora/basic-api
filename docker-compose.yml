@@ -1,41 +1,18 @@
-version: '3'
+version: '3.5'
+
 services:
-  
-  #PHP Service
   php:
     build:
-      context: .
-      dockerfile: Dockerfile
-    image: digitalocean.com/php
-    container_name: php
-    restart: unless-stopped
-    tty: true
-    environment:
-      SERVICE_NAME: app
-      SERVICE_TAGS: dev
+        context: .
     working_dir: /var/www
     volumes:
-      - ./:/var/www
-      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+        - ./:/var/www
     networks:
       - app-network
-
-  #Nginx Service
-  webserver:
-    image: nginx:alpine
-    container_name: webserver
-    restart: unless-stopped
-    tty: true
+    depends_on:
+        - "db"
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./:/var/www
-      - ./nginx/conf.d/:/etc/nginx/conf.d/
-    networks:
-      - app-network
-
-  #MySQL Service
+        - 80:80
   db:
     image: mysql:5.7.22
     container_name: db
@@ -56,11 +33,10 @@ services:
     networks:
       - app-network
 
-#Docker Networks
 networks:
   app-network:
     driver: bridge
-#Volumes
+
 volumes:
   dbdata:
     driver: local
