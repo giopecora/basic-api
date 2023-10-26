@@ -18,4 +18,4 @@ use Illuminate\Support\Facades\Route;
 Route::apiResource('product', ProductController::class)->middleware('auth:sanctum');
 
 Route::post('/login', [AuthController::class, 'login']);
-
+Route::get('/auth/verify', [AuthController::class, 'verify']);

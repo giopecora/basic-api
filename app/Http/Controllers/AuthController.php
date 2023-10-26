@@ -28,4 +28,20 @@ class AuthController extends Controller
             "token_type" => "Bearer",
         ]);
     }
+
+    public function verify()
+    {
+        if(!auth('sanctum')->check()){
+            return response()->json(
+                [
+                    "message" => "Invalid Token",
+                ],
+                401
+            );
+        }
+
+        return response()->json([
+            "success" => true
+        ]);
+    }
 }
